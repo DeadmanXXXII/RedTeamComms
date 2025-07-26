@@ -5,6 +5,9 @@ Operational communication is the core aspect of having finesse and precision dur
 
 [OpSec and Anonymity course](https://redteamleaders.coursestack.com/courses/e07e722b-642c-4191-b3a3-29cf39236968/take/11-the-origins-of-opsec-from-military-doctrine-to-offensive-cyber-operations)
 
+
+### RedTeamComms.
+
 A covert communication system for red teams, designed for encrypted, obfuscated, and compressed messaging over cellular data networks. It utilizes AES encryption with ephemeral keys, ECC-based key exchange, randomized port communication, and supports file and message transfers between smartphones running Kali NetHunter.
 
 
