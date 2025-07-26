@@ -56,7 +56,7 @@ RedTeamComms/
 ---
 
 requirements.txt
-```
+```txt
 cryptography
 pycryptodome
 ```
@@ -64,7 +64,7 @@ pycryptodome
 ---
 
 crypto/aes.py
-```
+```python
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 import base64
@@ -121,7 +121,7 @@ def derive_shared_key(private_key, peer_public_bytes):
 ---
 
 utils/obfuscation.py
-```
+```python
 def xor(data, key=0xAA):
     return bytes(b ^ key for b in data)
 ```
