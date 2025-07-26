@@ -1,320 +1,219 @@
 # RedTeamComms
 
-### Private encrypted comms channeling via Smartphone, raw data and SMTP servers with AES encryption.
+I built this project because of this course im sitting.
+Operational communication is the core aspect of having finesse and precision during "go time".
 
+[OpSec and Anonymity course](https://redteamleaders.coursestack.com/courses/e07e722b-642c-4191-b3a3-29cf39236968/take/11-the-origins-of-opsec-from-military-doctrine-to-offensive-cyber-operations)
 
+A covert communication system for red teams, designed for encrypted, obfuscated, and compressed messaging over cellular data networks. It utilizes AES encryption with ephemeral keys, ECC-based key exchange, randomized port communication, and supports file and message transfers between smartphones running Kali NetHunter.
 
-📁 Repository: RedTeamComms
 
 ---
 
-Repository structure and key files:
+### Features
+
+AES-256 Encryption (single-use keys)
+
+ECC Key Exchange (ECIES over Curve25519)
+
+Compressed + Obfuscated Traffic
+
+Randomized Port Selection
+
+File and Message Transfer Support
+
+Listener Server for Receiving Encrypted Payloads
+
+Optimized for Android NetHunter Devices
+
+
+
+---
+
+##### Project Structure
 ```
 RedTeamComms/
 ├── README.md
 ├── requirements.txt
-├── core/
+├── config.json
+├── sender.py              # Client to encrypt, compress, and transmit messages/files
+├── receiver.py            # Listener for receiving, decrypting, decompressing payloads
+├── crypto/
 │   ├── __init__.py
-│   ├── crypto.py
-│   ├── compress.py
-│   ├── obfuscate.py
-│   ├── port_manager.py
-│   ├── file_transfer.py
-│   └── daemon.py
-├── receiver/
-│   ├── listen.py
-│   └── keygen.py
-├── test/
-│   ├── test_crypto.py
-│   └── test_file_transfer.py
+│   ├── aes.py             # AES encryption/decryption utilities
+│   └── ecies.py           # ECC key generation and ECIES exchange
+├── utils/
+│   ├── __init__.py
+│   ├── obfuscation.py     # XOR/rotational/stream obfuscators
+│   └── compression.py     # Gzip compression utilities
+└── ports/
+    └── port_randomizer.py # Handles ephemeral port selection and validation
 ```
 
 ---
 
-1. requirements.txt
-```txt
-pycryptodome
+requirements.txt
+```
 cryptography
-pytest
+pycryptodome
 ```
 
 ---
 
-2. README.md
-
-### RedTeamComms
-
-RedTeamComms is a peer-to-peer encrypted messaging and file transfer system for smartphones running Kali NetHunter or similar Linux terminals or python IDE's.
-
-## Features
-- AES-256-GCM encryption with ephemeral X25519 key exchange
-- Zlib compression of messages and files
-- Traffic obfuscation (random padding + noise)
-- Dynamic port randomization for stealth
-- File transfer with chunking
-
-## Installation
-
-```bash
-pip install -r requirements.txt
-
-Usage
-
-Run server daemon (receiver)
-
-python3 core/daemon.py --mode server
-
-Send a file to peer (client mode)
-
-python3 core/daemon.py --mode client --peer-ip <IP_ADDRESS> --send-file /path/to/file
+crypto/aes.py
 ```
-
----
-
-Development
-
-Run tests with:
-```bash
-pytest
-```
----
-
-## 3. **core/crypto.py**
-
-```python
-import os
-from base64 import b64encode, b64decode
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
+import base64
+
+BLOCK_SIZE = 16
+
+def pad(data):
+    padding = BLOCK_SIZE - len(data) % BLOCK_SIZE
+    return data + bytes([padding] * padding)
+
+def unpad(data):
+    return data[:-data[-1]]
+
+def generate_aes_key():
+    return get_random_bytes(32)
+
+def encrypt_aes(key, plaintext):
+    iv = get_random_bytes(16)
+    cipher = AES.new(key, AES.MODE_CBC, iv)
+    ciphertext = cipher.encrypt(pad(plaintext))
+    return base64.b64encode(iv + ciphertext)
+
+def decrypt_aes(key, ciphertext):
+    raw = base64.b64decode(ciphertext)
+    iv = raw[:16]
+    cipher = AES.new(key, AES.MODE_CBC, iv)
+    return unpad(cipher.decrypt(raw[16:]))
+```
+
+---
+
+crypto/ecies.py
+```python
 from cryptography.hazmat.primitives.asymmetric import x25519
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives import hashes
 
-def generate_ecc_keypair():
+def generate_keypair():
     private_key = x25519.X25519PrivateKey.generate()
     public_key = private_key.public_key()
     return private_key, public_key
 
-def serialize_public_key(pub):
-    return pub.public_bytes(encoding=serialization.Encoding.Raw,
-                            format=serialization.PublicFormat.Raw)
-
-def load_public_key(pub_bytes):
-    return x25519.X25519PublicKey.from_public_bytes(pub_bytes)
-
-def derive_aes_key(priv_key, peer_pub_bytes):
-    peer_pub = load_public_key(peer_pub_bytes)
-    shared_secret = priv_key.exchange(peer_pub)
-    hkdf = HKDF(
+def derive_shared_key(private_key, peer_public_bytes):
+    peer_public = x25519.X25519PublicKey.from_public_bytes(peer_public_bytes)
+    shared = private_key.exchange(peer_public)
+    return HKDF(
         algorithm=hashes.SHA256(),
         length=32,
         salt=None,
-        info=b'phoenixrelay key derivation'
-    )
-    return hkdf.derive(shared_secret)
-
-def aes_encrypt(plaintext_bytes, key):
-    iv = get_random_bytes(12)
-    cipher = AES.new(key, AES.MODE_GCM, nonce=iv)
-    ciphertext, tag = cipher.encrypt_and_digest(plaintext_bytes)
-    return iv + tag + ciphertext
-
-def aes_decrypt(enc_bytes, key):
-    iv = enc_bytes[:12]
-    tag = enc_bytes[12:28]
-    ciphertext = enc_bytes[28:]
-    cipher = AES.new(key, AES.MODE_GCM, nonce=iv)
-    return cipher.decrypt_and_verify(ciphertext, tag)
+        info=b'RedTeamComms'
+    ).derive(shared)
 ```
 
 ---
 
-4. core/compress.py
+utils/obfuscation.py
+```
+def xor(data, key=0xAA):
+    return bytes(b ^ key for b in data)
+```
+
+---
+
+utils/compression.py
 ```python
-import zlib
+import gzip
+import io
 
 def compress(data: bytes) -> bytes:
-    return zlib.compress(data)
+    buf = io.BytesIO()
+    with gzip.GzipFile(fileobj=buf, mode='wb') as f:
+        f.write(data)
+    return buf.getvalue()
 
 def decompress(data: bytes) -> bytes:
-    return zlib.decompress(data)
+    with gzip.GzipFile(fileobj=io.BytesIO(data), mode='rb') as f:
+        return f.read()
 ```
 
 ---
 
-5. core/obfuscate.py
+ports/port_randomizer.py
 ```python
-import os
 import random
-
-def pad_data(data: bytes, block_size=256) -> bytes:
-    pad_len = block_size - (len(data) % block_size)
-    padding = os.urandom(pad_len)
-    return data + padding
-
-def add_noise(data: bytes, noise_level=0.05) -> bytes:
-    byte_arr = bytearray(data)
-    for i in range(len(byte_arr)):
-        if random.random() < noise_level:
-            bit_to_flip = 1 << random.randint(0, 7)
-            byte_arr[i] ^= bit_to_flip
-    return bytes(byte_arr)
-
-
----
-
-6. core/port_manager.py
-
-import random
-
-def get_random_port(exclude_ports=None):
-    exclude_ports = exclude_ports or []
-    while True:
-        port = random.randint(20000, 60000)
-        if port not in exclude_ports:
-            return port
-```
-
----
-
-7. core/file_transfer.py
-```python
-import os
 import socket
-from core.crypto import aes_encrypt, aes_decrypt, derive_aes_key
-from core.compress import compress, decompress
-from core.obfuscate import pad_data, add_noise
-from core.port_manager import get_random_port
 
-CHUNK_SIZE = 4096
-
-def send_file(filepath, peer_pub_bytes, priv_key, peer_ip):
-    key = derive_aes_key(priv_key, peer_pub_bytes)
-    port = get_random_port()
-
-    with open(filepath, 'rb') as f:
-        data = f.read()
-
-    compressed = compress(data)
-    encrypted = aes_encrypt(compressed, key)
-    obfuscated = add_noise(pad_data(encrypted))
-
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.connect((peer_ip, port))
-        s.sendall(obfuscated)
-    print(f"[+] Sent file {os.path.basename(filepath)} on port {port}")
-
-def receive_file(priv_key, peer_pub_bytes, listen_port, output_path):
-    key = derive_aes_key(priv_key, peer_pub_bytes)
-
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(('', listen_port))
-        s.listen(1)
-        conn, addr = s.accept()
-        print(f"[+] Receiving connection from {addr}")
-
-        encrypted_data = b''
-        while True:
-            chunk = conn.recv(CHUNK_SIZE)
-            if not chunk:
-                break
-            encrypted_data += chunk
-
-    decrypted = aes_decrypt(encrypted_data, key)
-    decompressed = decompress(decrypted)
-
-    with open(output_path, 'wb') as f:
-        f.write(decompressed)
-    print(f"[+] File saved to {output_path}")
+def get_random_open_port():
+    for _ in range(100):
+        port = random.randint(1024, 65535)
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            try:
+                s.bind(("0.0.0.0", port))
+                return port
+            except OSError:
+                continue
+    raise Exception("No free port found")
 ```
 
 ---
 
-8. core/daemon.py
+sender.py
 ```python
-import argparse
-from core.crypto import generate_ecc_keypair, serialize_public_key
-from core.file_transfer import send_file, receive_file
-from core.port_manager import get_random_port
+from crypto.aes import generate_aes_key, encrypt_aes
+from crypto.ecies import generate_keypair, derive_shared_key
+from utils.compression import compress
+from utils.obfuscation import xor
+import socket
+import json
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", choices=['server', 'client'], required=True)
-    parser.add_argument("--peer-ip", help="Target IP for client mode")
-    parser.add_argument("--send-file", help="File path to send")
-    parser.add_argument("--listen-port", type=int, help="Port to listen on (server mode)")
-    args = parser.parse_args()
+receiver_pub_key = ...  # Load from config or peer
+private_key, public_key = generate_keypair()
+shared_key = derive_shared_key(private_key, receiver_pub_key)
 
-    priv_key, pub_key = generate_ecc_keypair()
-    pub_key_bytes = serialize_public_key(pub_key)
+# Sample plaintext
+plaintext = b"Secret Message"
+compressed = compress(plaintext)
+obfuscated = xor(compressed)
+encrypted = encrypt_aes(shared_key, obfuscated)
 
-    if args.mode == 'server':
-        listen_port = args.listen_port or get_random_port()
-        print(f"[+] Running as server on port {listen_port}")
-        # Use receive_file here with configured peer pubkey, you need to handle storing peer pubkey securely and sharing it OOB
-        # Placeholder to receive a file:
-        # receive_file(priv_key, peer_pub_bytes, listen_port, "received_file.dat")
-
-    else:
-        if not args.peer_ip or not args.send_file:
-            print("Client mode requires --peer-ip and --send-file")
-            return
-        # Placeholder to send a file:
-        # send_file(args.send_file, peer_pub_bytes, priv_key, args.peer_ip)
-
-if __name__ == "__main__":
-    main()
+port = 5005  # or use port_randomizer
+s = socket.socket()
+s.connect(("receiver-ip", port))
+s.send(public_key.public_bytes())
+s.send(encrypted)
+s.close()
 ```
 
 ---
 
-9. test/test_crypto.py
+receiver.py
 ```python
-import pytest
-from core.crypto import generate_ecc_keypair, derive_aes_key, aes_encrypt, aes_decrypt
+from crypto.aes import decrypt_aes
+from crypto.ecies import generate_keypair, derive_shared_key
+from utils.compression import decompress
+from utils.obfuscation import xor
+import socket
 
-def test_encrypt_decrypt():
-    priv_key, pub_key = generate_ecc_keypair()
-    pub_bytes = pub_key.public_bytes()
-    key = derive_aes_key(priv_key, pub_bytes)
-    plaintext = b"Test message PhoenixRelay"
-    encrypted = aes_encrypt(plaintext, key)
-    decrypted = aes_decrypt(encrypted, key)
-    assert decrypted == plaintext
+private_key, public_key = generate_keypair()
+
+s = socket.socket()
+s.bind(("0.0.0.0", 5005))
+s.listen(1)
+conn, _ = s.accept()
+
+peer_pub = conn.recv(32)
+shared_key = derive_shared_key(private_key, peer_pub)
+
+encrypted = conn.recv(4096)
+obfuscated = decrypt_aes(shared_key, encrypted)
+compressed = xor(obfuscated)
+plaintext = decompress(compressed)
+print("Received:", plaintext)
 ```
 
----
-
-10. test/test_file_transfer.py
-```python
-import os
-import tempfile
-from core.file_transfer import compress, decompress
-
-def test_compress_decompress():
-    data = b"Secret file data for PhoenixRelay"
-    compressed = compress(data)
-    decompressed = decompress(compressed)
-    assert decompressed == data
-
-def test_file_send_receive(tmp_path):
-    # For real integration test, you need socket mocks or real sockets
-    # Here just a placeholder for completeness
-    pass
-```
-
-
----
-
-##### 🏁 Getting Started
-```bash
-unzip PhoenixRelay.zip
-cd PhoenixRelay
-pip install -r requirements.txt
-python3 core/daemon.py --mode server
-```
-# On another device:
-```bash
-python3 core/daemon.py --mode client --peer-ip <server_ip> --send-file ./somefile.txt
-```
-
+##### Stay silent, stay shady.
