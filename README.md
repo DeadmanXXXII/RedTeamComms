@@ -63,6 +63,75 @@ pycryptodome
 
 ---
 
+sender.py
+```python
+from crypto.aes import generate_aes_key, encrypt_aes
+from crypto.ecies import generate_keypair, derive_shared_key
+from utils.compression import compress
+from utils.obfuscation import xor
+import socket
+import json
+
+receiver_pub_key = ...  # Load from config or peer
+private_key, public_key = generate_keypair()
+shared_key = derive_shared_key(private_key, receiver_pub_key)
+
+# Sample plaintext
+plaintext = b"Secret Message"
+compressed = compress(plaintext)
+obfuscated = xor(compressed)
+encrypted = encrypt_aes(shared_key, obfuscated)
+
+port = 5005  # or use port_randomizer
+s = socket.socket()
+s.connect(("receiver-ip", port))
+s.send(public_key.public_bytes())
+s.send(encrypted)
+s.close()
+```
+
+---
+
+receiver.py
+```python
+from crypto.aes import decrypt_aes
+from crypto.ecies import generate_keypair, derive_shared_key
+from utils.compression import decompress
+from utils.obfuscation import xor
+import socket
+
+private_key, public_key = generate_keypair()
+
+s = socket.socket()
+s.bind(("0.0.0.0", 5005))
+s.listen(1)
+conn, _ = s.accept()
+
+peer_pub = conn.recv(32)
+shared_key = derive_shared_key(private_key, peer_pub)
+
+encrypted = conn.recv(4096)
+obfuscated = decrypt_aes(shared_key, encrypted)
+compressed = xor(obfuscated)
+plaintext = decompress(compressed)
+print("Received:", plaintext)
+```
+configs.json
+```json
+{
+  "aes_key_length": 256,
+  "ecc_curve": "secp521r1",
+  "compression_level": 9,
+  "obfuscation_method": "xor",
+  "port_range": [40000, 60000],
+  "default_interface": "rmnet_data0",
+  "max_packet_size": 4096,
+  "key_rotation": true
+}
+```
+
+---
+
 crypto/aes.py
 ```python
 from Crypto.Cipher import AES
@@ -179,72 +248,5 @@ ports/__init__.py
 from .port_randomizer import get_random_port
 ```
 ---
-
-sender.py
-```python
-from crypto.aes import generate_aes_key, encrypt_aes
-from crypto.ecies import generate_keypair, derive_shared_key
-from utils.compression import compress
-from utils.obfuscation import xor
-import socket
-import json
-
-receiver_pub_key = ...  # Load from config or peer
-private_key, public_key = generate_keypair()
-shared_key = derive_shared_key(private_key, receiver_pub_key)
-
-# Sample plaintext
-plaintext = b"Secret Message"
-compressed = compress(plaintext)
-obfuscated = xor(compressed)
-encrypted = encrypt_aes(shared_key, obfuscated)
-
-port = 5005  # or use port_randomizer
-s = socket.socket()
-s.connect(("receiver-ip", port))
-s.send(public_key.public_bytes())
-s.send(encrypted)
-s.close()
-```
-
----
-
-receiver.py
-```python
-from crypto.aes import decrypt_aes
-from crypto.ecies import generate_keypair, derive_shared_key
-from utils.compression import decompress
-from utils.obfuscation import xor
-import socket
-
-private_key, public_key = generate_keypair()
-
-s = socket.socket()
-s.bind(("0.0.0.0", 5005))
-s.listen(1)
-conn, _ = s.accept()
-
-peer_pub = conn.recv(32)
-shared_key = derive_shared_key(private_key, peer_pub)
-
-encrypted = conn.recv(4096)
-obfuscated = decrypt_aes(shared_key, encrypted)
-compressed = xor(obfuscated)
-plaintext = decompress(compressed)
-print("Received:", plaintext)
-```
-configs.json
-```json
-{
-  "aes_key_length": 256,
-  "ecc_curve": "secp521r1",
-  "compression_level": 9,
-  "obfuscation_method": "xor",
-  "port_range": [40000, 60000],
-  "default_interface": "rmnet_data0",
-  "max_packet_size": 4096,
-  "key_rotation": true
-}
-```
 
 ##### Stay silent, stay shady.
