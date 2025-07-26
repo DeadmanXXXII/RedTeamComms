@@ -8,7 +8,7 @@ Operational communication is the core aspect of having finesse and precision dur
 
 ### RedTeamComms.
 
-A covert communication system for red teams, designed for encrypted, obfuscated, and compressed messaging over cellular data networks. It utilizes AES encryption with ephemeral keys, ECC-based key exchange, randomized port communication, and supports file and message transfers between smartphones running Kali NetHunter.
+A covert communication system for red teams, designed for encrypted, obfuscated, and compressed messaging over cellular data networks. It utilizes AES encryption with ephemeral keys, ECC-based key exchange, randomized port communication, and supports file and message transfers between multi sim smartphones running Kali NetHunter with dynamic addressing.
 
 
 ---
