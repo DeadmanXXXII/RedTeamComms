@@ -233,7 +233,7 @@ compressed = xor(obfuscated)
 plaintext = decompress(compressed)
 print("Received:", plaintext)
 ```
-
+configs.json
 ```json
 {
   "aes_key_length": 256,
