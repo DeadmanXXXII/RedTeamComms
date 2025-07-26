@@ -118,6 +118,12 @@ def derive_shared_key(private_key, peer_public_bytes):
     ).derive(shared)
 ```
 
+crypto/__init__.py
+```python
+from .aes import encrypt_data, decrypt_data, generate_aes_key
+from .ecies import generate_key_pair, encrypt_with_ecies, decrypt_with_ecies
+```
+
 ---
 
 utils/obfuscation.py
@@ -143,6 +149,11 @@ def decompress(data: bytes) -> bytes:
     with gzip.GzipFile(fileobj=io.BytesIO(data), mode='rb') as f:
         return f.read()
 ```
+utils/__init__.py
+```python
+from .compression import compress_data, decompress_data
+from .obfuscation import obfuscate_data, deobfuscate_data
+```
 
 ---
 
@@ -163,6 +174,10 @@ def get_random_open_port():
     raise Exception("No free port found")
 ```
 
+ports/__init__.py
+```python
+from .port_randomizer import get_random_port
+```
 ---
 
 sender.py
@@ -217,6 +232,19 @@ obfuscated = decrypt_aes(shared_key, encrypted)
 compressed = xor(obfuscated)
 plaintext = decompress(compressed)
 print("Received:", plaintext)
+```
+
+```json
+{
+  "aes_key_length": 256,
+  "ecc_curve": "secp521r1",
+  "compression_level": 9,
+  "obfuscation_method": "xor",
+  "port_range": [40000, 60000],
+  "default_interface": "rmnet_data0",
+  "max_packet_size": 4096,
+  "key_rotation": true
+}
 ```
 
 ##### Stay silent, stay shady.
