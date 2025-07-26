@@ -9,7 +9,7 @@
 ---
 
 Repository structure and key files:
-
+```
 RedTeamComms/
 ├── README.md
 ├── requirements.txt
@@ -24,7 +24,7 @@ RedTeamComms/
 ├── test/
 │   ├── test_crypto.py
 │   └── test_file_transfer.py
-
+```
 
 ---
 
