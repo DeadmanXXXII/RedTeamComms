@@ -1,6 +1,6 @@
 # RedTeamComms
 
-I built this project because of this course im sitting.
+I built this project because of this course I'm sitting.
 Operational communication is the core aspect of having finesse and precision during "go time".
 
 [OpSec and Anonymity course](https://redteamleaders.coursestack.com/courses/e07e722b-642c-4191-b3a3-29cf39236968/take/11-the-origins-of-opsec-from-military-doctrine-to-offensive-cyber-operations)
