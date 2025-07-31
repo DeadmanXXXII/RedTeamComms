@@ -1,0 +1,10 @@
+{
+  "aes_key_length": 256,
+  "ecc_curve": "secp521r1",
+  "compression_level": 9,
+  "obfuscation_method": "xor",
+  "port_range": [40000, 60000],
+  "default_interface": "rmnet_data0",
+  "max_packet_size": 4096,
+  "key_rotation": true
+}
